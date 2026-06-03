@@ -6,30 +6,35 @@ from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = "8879366892:AAGSozS7aaADKosbT0qS29CFK9GHUl4ydhM"
-GEMINI_API_KEY = "AQ.Ab8RN6Lc9HfZaOt5BxjtJxKkMXzsv6vPf_nQ6X-U_D2-mq4oVg"
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY
+GROQ_API_KEY = "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"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 def extract_video_id(url):
     m = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})', url)
     return m.group(1) if m else None
 
-async def call_gemini(prompt):
+async def call_groq(prompt):
     async with httpx.AsyncClient(timeout=60) as client:
-        r = await client.post(GEMINI_URL, json={
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.7, "maxOutputTokens": 4000}
-        })
+        r = await client.post(GROQ_URL, 
+            headers={"Authorization": "Bearer " + GROQ_API_KEY, "Content-Type": "application/json"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 4000
+            }
+        )
         data = r.json()
         if not r.is_success:
-            raise Exception(data.get("error", {}).get("message", "Gemini API error"))
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+            raise Exception(str(data.get("error", "Groq API error")))
+        return data["choices"][0]["message"]["content"]
 
 def make_prompt(url, vid):
     return """Ты эксперт по YouTube маркетингу. Проанализируй видео:
 URL: """ + url + """
 Video ID: """ + vid + """
 
-Верни ТОЛЬКО валидный JSON без markdown:
+Верни ТОЛЬКО валидный JSON без markdown, без пояснений:
 
 {
   "score": {
@@ -76,7 +81,7 @@ Video ID: """ + vid + """
   }
 }
 
-Замени все значения реальным анализом. Отвечай на русском. Только JSON."""
+Замени все значения реальным анализом на русском языке. Только JSON, никаких других слов."""
 
 def format_score(d):
     s = d.get("score", {})
@@ -96,7 +101,7 @@ def format_hooks(d):
     for h in hooks:
         pwr = "🔥" if h.get("power") == "HIGH" else "⚡" if h.get("power") == "MEDIUM" else "💧"
         text += "\n" + pwr + " *" + h.get("type","") + "* | _" + h.get("timestamp","") + "_\n"
-        text += "  \"" + h.get("text","") + "\"\n"
+        text += "  " + h.get("text","") + "\n"
         text += "  📌 " + h.get("why","") + "\n"
     text += "\n🧠 *Триггеры:* " + " • ".join(triggers)
     return text
@@ -115,7 +120,7 @@ def format_breakdown(d):
     for i, sc in enumerate(scenes):
         imp = sc.get("impact","")
         e = "🔴" if imp == "HIGH" else "🟡" if imp == "MEDIUM" else "⚪"
-        text += e + " *#" + str(i+1) + " | " + sc.get("timestamp","") + "*\n"
+        text += e + " *" + str(i+1) + " | " + sc.get("timestamp","") + "*\n"
         text += "  " + sc.get("description","") + "\n"
         text += "  _" + sc.get("technique","") + "_\n\n"
     return text
@@ -126,7 +131,13 @@ def format_thumbnail(d):
         return "⭐" * int(n) + "☆" * (10 - int(n))
     elems = "\n".join(["  ✅ " + e for e in th.get("elements",[])])
     steps = "\n".join(["  " + str(i+1) + ". " + s for i, s in enumerate(th.get("improvement_steps",[]))])
-    return "🖼 *АНАЛИЗ ПРЕВЬЮ*\n\n🎨 Контраст: " + stars(th.get("contrast_score",0)) + " " + str(th.get("contrast_score",0)) + "/10\n✍️ Текст: " + stars(th.get("text_score",0)) + " " + str(th.get("text_score",0)) + "/10\n😮 Эмоция: " + stars(th.get("emotion_score",0)) + " " + str(th.get("emotion_score",0)) + "/10\n👆 CTR: " + stars(th.get("ctr_score",0)) + " " + str(th.get("ctr_score",0)) + "/10\n\n📦 *Элементы:*\n" + elems + "\n\n🚀 *Как улучшить:*\n" + steps
+    return ("🖼 *АНАЛИЗ ПРЕВЬЮ*\n\n"
+        "🎨 Контраст: " + stars(th.get("contrast_score",0)) + " " + str(th.get("contrast_score",0)) + "/10\n"
+        "✍️ Текст: " + stars(th.get("text_score",0)) + " " + str(th.get("text_score",0)) + "/10\n"
+        "😮 Эмоция: " + stars(th.get("emotion_score",0)) + " " + str(th.get("emotion_score",0)) + "/10\n"
+        "👆 CTR: " + stars(th.get("ctr_score",0)) + " " + str(th.get("ctr_score",0)) + "/10\n\n"
+        "📦 *Элементы:*\n" + elems + "\n\n"
+        "🚀 *Как улучшить:*\n" + steps)
 
 async def start(update, context):
     await update.message.reply_text(
@@ -149,7 +160,7 @@ async def handle_message(update, context):
     msg = await update.message.reply_text("⏳ Анализирую... подожди 20-30 секунд")
     try:
         prompt = make_prompt(text, vid)
-        raw = await call_gemini(prompt)
+        raw = await call_groq(prompt)
         raw = raw.replace("```json","").replace("```","").strip()
         data = json.loads(raw)
         await msg.edit_text("✅ Готово! Отправляю результаты...")
