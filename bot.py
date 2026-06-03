@@ -33,11 +33,11 @@ async def call_groq(prompt):
 
 def make_prompt(url, vid, lang):
     if lang == "ru":
-        lang_instruction = "Весь анализ на русском языке."
+        lang_instruction = "Весь анализ строго на русском языке."
     elif lang == "en":
-        lang_instruction = "All analysis in English language."
+        lang_instruction = "All analysis strictly in English."
     else:
-        lang_instruction = "Provide analysis in both Russian and English. For each text field provide format: 'RU: [russian text] | EN: [english text]'"
+        lang_instruction = "Provide all text fields in both languages, format: 'RU: [russian] | EN: [english]'"
 
     return """You are a top YouTube marketing expert. Analyze this video:
 URL: """ + url + """
@@ -48,32 +48,47 @@ Video ID: """ + vid + """
 Return ONLY valid JSON without markdown:
 
 {
+  "niche": {
+    "main_niche": "главная ниша (например: Образование, Финансы, Здоровье, Развлечения)",
+    "sub_niche": "подниша (например: Личные финансы для молодёжи, Похудение без диет)",
+    "niche_popularity": 8,
+    "niche_competition": 7,
+    "niche_money": 9,
+    "niche_verdict": "краткий вывод — стоит ли заходить в эту нишу",
+    "content_sources": [
+      {"source": "название источника", "url": "ссылка или описание где искать", "type": "тип: YouTube / Reddit / Форум / Сайт / Телеграм"},
+      {"source": "название", "url": "ссылка", "type": "тип"},
+      {"source": "название", "url": "ссылка", "type": "тип"},
+      {"source": "название", "url": "ссылка", "type": "тип"},
+      {"source": "название", "url": "ссылка", "type": "тип"}
+    ]
+  },
   "score": {
     "overall_score": 75,
     "verdict": "verdict text",
     "metrics": [
-      {"label": "Audience Retention", "value": 70},
-      {"label": "Hook Quality", "value": 80},
-      {"label": "Engagement", "value": 75},
+      {"label": "Удержание аудитории", "value": 70},
+      {"label": "Качество хука", "value": 80},
+      {"label": "Вовлечённость", "value": 75},
       {"label": "SEO", "value": 65},
-      {"label": "Monetization", "value": 70}
+      {"label": "Монетизация", "value": 70}
     ],
-    "recommendations": ["rec1","rec2","rec3","rec4","rec5"]
+    "recommendations": ["рек1","рек2","рек3","рек4","рек5"]
   },
   "title_analysis": {
     "original_title": "original video title",
     "clickbait_score": 7,
     "clickbait_verdict": "explanation",
-    "what_works": "what works in the title",
+    "what_works": "what works",
     "what_lacks": "what is missing",
-    "improved_titles": ["improved title 1","improved title 2","improved title 3"],
-    "your_titles": ["your video title 1","your video title 2","your video title 3"]
+    "improved_titles": ["title1","title2","title3"],
+    "your_titles": ["your title1","your title2","your title3"]
   },
   "hooks": [
-    {"type": "hook type", "timestamp": "0:00", "text": "hook description", "why": "why it works", "power": "HIGH"},
+    {"type": "hook type", "timestamp": "0:00", "text": "description", "why": "why it works", "power": "HIGH"},
     {"type": "hook type", "timestamp": "0:15", "text": "description", "why": "explanation", "power": "MEDIUM"}
   ],
-  "triggers": ["trigger1", "trigger2", "trigger3", "trigger4"],
+  "triggers": ["trigger1","trigger2","trigger3","trigger4"],
   "scenario": {
     "structure": [
       {"time": "0:00-0:30", "phase": "HOOK", "description": "description"},
@@ -82,7 +97,7 @@ Return ONLY valid JSON without markdown:
       {"time": "8:00-9:30", "phase": "SOLUTION", "description": "description"},
       {"time": "9:30-end", "phase": "CALL TO ACTION", "description": "description"}
     ],
-    "full_script": "detailed scenario description 3-5 paragraphs"
+    "full_script": "detailed scenario 3-5 paragraphs"
   },
   "breakdown": [
     {"timestamp": "0:00", "description": "scene", "technique": "technique", "impact": "HIGH"},
@@ -96,12 +111,36 @@ Return ONLY valid JSON without markdown:
     "text_score": 8,
     "emotion_score": 7,
     "ctr_score": 7,
-    "elements": ["element1", "element2", "element3"],
-    "improvement_steps": ["step1", "step2", "step3", "step4"]
+    "elements": ["element1","element2","element3"],
+    "improvement_steps": ["step1","step2","step3","step4"]
   }
 }
 
 Replace all values with real analysis. Only JSON, no other words."""
+
+def format_niche(d):
+    n = d.get("niche", {})
+    pop = n.get("niche_popularity", 0)
+    comp = n.get("niche_competition", 0)
+    money = n.get("niche_money", 0)
+
+    def bar(v):
+        return "█" * int(v) + "░" * (10 - int(v))
+
+    sources = ""
+    for s in n.get("content_sources", []):
+        type_emoji = {"YouTube": "▶️", "Reddit": "🟠", "Форум": "💬", "Сайт": "🌐", "Телеграм": "✈️"}.get(s.get("type",""), "📌")
+        sources += "\n" + type_emoji + " *" + s.get("source","") + "*\n  " + s.get("url","") + "\n"
+
+    return ("🗺 *НИША И ПОДНИША*\n\n"
+        "📂 *Ниша:* " + n.get("main_niche","") + "\n"
+        "📁 *Подниша:* " + n.get("sub_niche","") + "\n\n"
+        "📊 *Показатели ниши:*\n"
+        "  🔥 Популярность: " + bar(pop) + " " + str(pop) + "/10\n"
+        "  ⚔️ Конкуренция:  " + bar(comp) + " " + str(comp) + "/10\n"
+        "  💰 Монетизация:  " + bar(money) + " " + str(money) + "/10\n\n"
+        "💡 *Вывод:* " + n.get("niche_verdict","") + "\n\n"
+        "🔍 *Где искать материал:*" + sources)
 
 def format_score(d):
     s = d.get("score", {})
@@ -112,7 +151,7 @@ def format_score(d):
         bar = "█" * (m["value"] // 10) + "░" * (10 - m["value"] // 10)
         metrics_text += "  " + m["label"] + ": " + bar + " " + str(m["value"]) + "\n"
     recs = "\n".join(["  " + str(i+1) + ". " + r for i, r in enumerate(s.get("recommendations", []))])
-    return emoji + " *РЕЙТИНГ / SCORE*\n\n*Балл: " + str(score) + "/100*\n_" + s.get("verdict","") + "_\n\n📈 *Метрики:*\n" + metrics_text + "\n💡 *Рекомендации:*\n" + recs
+    return emoji + " *РЕЙТИНГ ВИДЕО*\n\n*Балл: " + str(score) + "/100*\n_" + s.get("verdict","") + "_\n\n📈 *Метрики:*\n" + metrics_text + "\n💡 *Рекомендации:*\n" + recs
 
 def format_title(d):
     t = d.get("title_analysis", {})
@@ -126,7 +165,7 @@ def format_title(d):
         "✅ *Что работает:*\n  " + t.get("what_works","") + "\n\n"
         "❌ *Чего не хватает:*\n  " + t.get("what_lacks","") + "\n\n"
         "✨ *Улучшенные варианты:*\n" + improved + "\n\n"
-        "🚀 *Твои заголовки для этой темы:*\n" + yours)
+        "🚀 *Твои заголовки:*\n" + yours)
 
 def format_hooks(d):
     hooks = d.get("hooks", [])
@@ -173,9 +212,9 @@ def format_thumbnail(d):
         "📦 *Элементы:*\n" + elems + "\n\n"
         "🚀 *Как улучшить:*\n" + steps)
 
-async def run_analysis(update, url, lang):
+async def run_analysis(reply_func, url, lang):
     vid = extract_video_id(url)
-    msg = await update.message.reply_text("⏳ Анализирую... подожди 20-30 секунд")
+    msg = await reply_func("⏳ Анализирую... подожди 30-40 секунд")
     try:
         prompt = make_prompt(url, vid, lang)
         raw = await call_groq(prompt)
@@ -183,13 +222,14 @@ async def run_analysis(update, url, lang):
         data = json.loads(raw)
         await msg.edit_text("✅ Готово! Отправляю результаты...")
         try:
-            await update.message.reply_photo(
+            await reply_func.__self__.reply_photo(
                 photo="https://img.youtube.com/vi/" + vid + "/mqdefault.jpg",
-                caption="🎯 Анализ: " + url
+                caption="🎯 " + url
             )
         except:
             pass
         sections = [
+            format_niche(data),
             format_score(data),
             format_title(data),
             format_hooks(data),
@@ -199,10 +239,10 @@ async def run_analysis(update, url, lang):
         ]
         for section in sections:
             try:
-                await update.message.reply_text(section, parse_mode="Markdown")
+                await reply_func(section, parse_mode="Markdown")
             except:
                 clean = re.sub(r'[*_`]', '', section)
-                await update.message.reply_text(clean)
+                await reply_func(clean)
             await asyncio.sleep(0.5)
         await msg.delete()
     except json.JSONDecodeError:
@@ -214,6 +254,7 @@ async def start(update, context):
     await update.message.reply_text(
         "👋 Привет! Отправь ссылку на YouTube видео конкурента.\n\n"
         "Я проанализирую:\n"
+        "🗺 Нишу и поднишу + где искать материал\n"
         "📊 Рейтинг и оценку\n"
         "🎯 Заголовок + готовые заголовки для тебя\n"
         "⚡ Хуки и триггеры\n"
@@ -229,20 +270,15 @@ async def handle_message(update, context):
     if not vid:
         await update.message.reply_text("❌ Отправь ссылку на YouTube\nПример: https://youtube.com/watch?v=...")
         return
-
     user_urls[update.effective_user.id] = text
-
     keyboard = [
         [
             InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
             InlineKeyboardButton("🇺🇸 English", callback_data="lang_en"),
         ],
-        [
-            InlineKeyboardButton("🇷🇺🇺🇸 Оба языка", callback_data="lang_both"),
-        ]
+        [InlineKeyboardButton("🇷🇺🇺🇸 Оба языка", callback_data="lang_both")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("🌍 На каком языке сделать анализ?", reply_markup=reply_markup)
+    await update.message.reply_text("🌍 На каком языке сделать анализ?", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def handle_lang(update, context):
     query = update.callback_query
@@ -253,49 +289,7 @@ async def handle_lang(update, context):
         await query.message.reply_text("❌ Отправь ссылку заново.")
         return
     await query.message.delete()
-    await run_analysis(query, url, lang)
-
-async def run_analysis(update_or_query, url, lang):
-    vid = extract_video_id(url)
-    if hasattr(update_or_query, 'message'):
-        reply = update_or_query.message.reply_text
-    else:
-        reply = update_or_query.reply_text
-
-    msg = await reply("⏳ Анализирую... подожди 20-30 секунд")
-    try:
-        prompt = make_prompt(url, vid, lang)
-        raw = await call_groq(prompt)
-        raw = raw.replace("```json","").replace("```","").strip()
-        data = json.loads(raw)
-        await msg.edit_text("✅ Готово! Отправляю результаты...")
-        try:
-            await reply.__self__.reply_photo(
-                photo="https://img.youtube.com/vi/" + vid + "/mqdefault.jpg",
-                caption="🎯 " + url
-            )
-        except:
-            pass
-        sections = [
-            format_score(data),
-            format_title(data),
-            format_hooks(data),
-            format_scenario(data),
-            format_breakdown(data),
-            format_thumbnail(data)
-        ]
-        for section in sections:
-            try:
-                await reply(section, parse_mode="Markdown")
-            except:
-                clean = re.sub(r'[*_`]', '', section)
-                await reply(clean)
-            await asyncio.sleep(0.5)
-        await msg.delete()
-    except json.JSONDecodeError:
-        await msg.edit_text("❌ Ошибка ответа ИИ. Попробуй ещё раз.")
-    except Exception as e:
-        await msg.edit_text("❌ Ошибка: " + str(e))
+    await run_analysis(query.message.reply_text, url, lang)
 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
