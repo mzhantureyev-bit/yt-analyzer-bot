@@ -7,7 +7,7 @@ from telegram.ext import Application, MessageHandler, CommandHandler, filters, C
 
 TELEGRAM_TOKEN = "8879366892:AAGSozS7aaADKosbT0qS29CFK9GHUl4ydhM"
 GEMINI_API_KEY = "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"
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY
+GEMINI_URL = "58785891142-ui8rquf99kpn51kru5di12d1mj42o76r.apps.googleusercontent.com" + GEMINI_API_KEY
 
 def extract_video_id(url):
     m = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})', url)
