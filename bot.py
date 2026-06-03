@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = "8879366892:AAGSozS7aaADKosbT0qS29CFK9GHUl4ydhM"
-GEMINI_API_KEY = "28be890fa9da0544307443d95b730555dcfc86bb"
+GEMINI_API_KEY = "AQ.Ab8RN6ITlRIpSVYi_M1dSS0EC4ZtsTTuDzwKiQFoohjyzyKUMw"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY
 
 def extract_video_id(url):
